@@ -135,3 +135,22 @@ class PklDataset(Dataset):
             )
 
         return final_maps_tensor, final_labels_tensor
+
+
+class MinibatchDataset(Dataset):
+    """Get a set of tensors and target classes
+    a batch and return a minibatch for that batch"""
+
+    def __init__(self, data):
+        super().__init__()
+
+        self.data = data
+
+    def __len__(self):
+        """return the total number of samples in the batch."""
+        return self.data[1].shape[0]
+
+    def __getitem__(self, idx):
+        """ get the correct indices"""
+        inputs, targets = self.data[0][idx, :, :, :], self.data[1][idx, :]
+        return inputs, targets
