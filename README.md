@@ -11,7 +11,7 @@ The network, trained on the static dataset was able to achieve very good results
 
 and as such, it is justified to try to implement a more complex data generation algorithm and adversarial network.
 
-Results for an trained untuned run are shown below
+Results for a trained untuned run are shown below
 
 ![proof_of_concept_training](./images/proof_of_concept.jpg)
 
