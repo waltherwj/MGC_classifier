@@ -13,7 +13,7 @@ and as such, it is justified to try to implement a more complex data generation 
 
 Results for an trained untuned run are shown below
 
-![image-20210501163720095](C:\Users\walth\AppData\Roaming\Typora\typora-user-images\image-20210501163720095.png)
+![proof_of_concept_training](./images/proof_of_concept.jpg)
 
 ## Data
 
