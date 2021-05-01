@@ -1,7 +1,6 @@
 """
 Create the classifier module
 """
-
 import re
 import numpy as np
 import torch.nn as nn
