@@ -24,6 +24,7 @@ class PklDataset(Dataset):
         Args:
             root_dir (string): Directory with all the data.
         """
+        super().__init__()
 
         self.root_dir = root_dir
         self.categories = [
@@ -135,6 +136,22 @@ class PklDataset(Dataset):
 
         return final_maps_tensor, final_labels_tensor
 
+    @staticmethod
+    def collate_fn(samples):
+        """
+        redefine the collate_fn to be able to stack the arrays that are
+        randomly sized in the batch dimension
+        """
+
+        # get the sequences
+        maps_tensors, labels_tensors = zip(*samples)
+
+        # concatenate them
+        maps_tensors_concatenated = torch.cat(maps_tensors, dim=0)
+        labels_tensors_concatenated = torch.cat(labels_tensors, dim=0)
+
+        return maps_tensors_concatenated, labels_tensors_concatenated
+
 
 class MinibatchDataset(Dataset):
     """Get a set of tensors and target classes
@@ -153,4 +170,3 @@ class MinibatchDataset(Dataset):
         """ get the correct indices"""
         inputs, targets = self.data[0][idx, :, :, :], self.data[1][idx, :]
         return inputs, targets
-        
