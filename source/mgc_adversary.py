@@ -1,20 +1,25 @@
 """
-Create the classifier module
+Create the generator module
 """
 import re
 import numpy as np
 import torch.nn as nn
 
 
-class MgcNet(nn.Module):
-    """ take an MGC correlation map and predict
-    the operations that could have taken to that
-    map"""
+class GeneratorNet(nn.Module):
+    """ take a tensor with accuracies for each of the classes
+    and predict a probability distribution for the classes that
+    will maximize the loss of the classifier
+    """
 
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
     def __init__(
-        self, out_channels, num_conv_layers, n_classes, kernel=3, img_size=128
+        self, 
+        out_channels,  
+        n_classes, 
+        n_hidden_layers,
+        n_hidden_features,
     ):
         super().__init__()
 
@@ -22,62 +27,31 @@ class MgcNet(nn.Module):
         self.out_channels = out_channels
         self.n_classes = n_classes
         self.img_size = img_size
-        self.num_conv_layers = num_conv_layers
-
-        # get the padding for same padding. Assumes stride=1
-        pad = int(np.ceil((kernel - 1) / 2))
+        self.n_hidden_layers = n_hidden_layers
+        self.n_hidden_features = n_hiden_features
 
         ####################################################
-        # layers
-        # convolutional layers
-        self.conv_input = nn.Conv2d(
-            in_channels=1, out_channels=out_channels, kernel_size=kernel, padding=pad
-        )
-        self.successive_poolings = 0
-        # account for the input convolutional layer too (-1)
-        for i in range(num_conv_layers - 1):
+        ########             layers               ##########
+        ####################################################
+        
+        # dense layers
+        # initialize the first layer
+        n_features_prev = self.n_classes
+        n_features_out = self.n_hidden_features
+        # stack linears
+        for i in range(n_hidden_layers):
             setattr(
                 self,
-                "conv" + str(i),
-                nn.Conv2d(
-                    in_channels=out_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel,
-                    padding=1,
+                "linear" + str(i),
+                nn.Linear(
+                    in_features=n_features,
+                    out_features=n_features_out,
                 ),
             )
-            if img_size // (2 ** self.successive_poolings) > 32:
-                setattr(
-                    self,
-                    "maxpool" + str(i),
-                    nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-                )
-                self.successive_poolings += 1
-            else:
-                setattr(
-                    self,
-                    "maxpool" + str(i),
-                    nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
-                )
-        pooled_output_size = img_size // (2 ** self.successive_poolings)
-
-        # linear layers
-        in_features_linear = out_channels * pooled_output_size * pooled_output_size
-        transition_features_linear = (
-            n_classes + (out_channels * pooled_output_size * pooled_output_size) // 2
-        )
-        setattr(
-            self,
-            "linear" + str(0),
-            nn.Linear(
-                in_features=in_features_linear, out_features=transition_features_linear
-            ),
-        )
-        setattr(
-            self,
-            "linear" + str(1),
-            nn.Linear(in_features=transition_features_linear, out_features=n_classes),
-        )
+            n_features_prev = n_features_out
+            # add the output layer
+            if i == self.n_hidden_layers-1:
+                n_features_out = self.n_classes
 
         # activation layers
         self.relu = nn.LeakyReLU(0.2)

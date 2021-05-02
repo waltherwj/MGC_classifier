@@ -6,6 +6,7 @@ __pycache__/
 # data
 data/
 MgcClassifierData.zip
+ignore_me.txt
 
 # C extensions
 *.so
