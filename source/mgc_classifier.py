@@ -80,6 +80,7 @@ class MgcNet(nn.Module):
         )
 
         # activation layers
+        self.batch_normalization = nn.BatchNorm2d(num_features = 1)
         self.relu = nn.LeakyReLU(0.2)
         self.softmax = nn.Softmax(dim=1)
         self.define_sequence()
@@ -96,6 +97,7 @@ class MgcNet(nn.Module):
             if isinstance(seq_module, nn.Conv2d):
                 n_appended_convs += 1
                 self.sequence.append(seq_module)
+                self.sequence.append(self.batch_normalization)
                 self.sequence.append(self.relu)
                 number = re.findall(r"\d+", name)
 
