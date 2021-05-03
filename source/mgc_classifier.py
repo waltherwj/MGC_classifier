@@ -14,7 +14,7 @@ class MgcNet(nn.Module):
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
     def __init__(
-        self, out_channels, num_conv_layers, n_classes, kernel=3, img_size=128
+        self, out_channels, num_conv_layers, num_dense_layers, n_classes, kernel=3, img_size=128
     ):
         super().__init__()
 
@@ -23,6 +23,7 @@ class MgcNet(nn.Module):
         self.n_classes = n_classes
         self.img_size = img_size
         self.num_conv_layers = num_conv_layers
+        self.num_dense_layers = num_dense_layers
 
         # get the padding for same padding. Assumes stride=1
         pad = int(np.ceil((kernel - 1) / 2))
@@ -63,27 +64,28 @@ class MgcNet(nn.Module):
 
         # linear layers
         in_features_linear = out_channels * pooled_output_size * pooled_output_size
-        transition_features_linear = (
-            n_classes + (out_channels * pooled_output_size * pooled_output_size) // 2
-        )
-        setattr(
-            self,
-            "linear" + str(0),
-            nn.Linear(
-                in_features=in_features_linear, out_features=transition_features_linear
-            ),
-        )
-        setattr(
-            self,
-            "linear" + str(1),
-            nn.Linear(in_features=transition_features_linear, out_features=n_classes),
-        )
+        
+        # initialize the first layer
+        n_features_prev = in_features_linear
+        n_features_out = self.n_classes
+        # stack linears
+        for i in range(num_dense_layers):
+            setattr(
+                self,
+                "linear" + str(i),
+                nn.Linear(in_features=n_features_prev, out_features=n_features_out,),
+            )
+            n_features_prev = n_features_out
 
         # activation layers
         self.batch_normalization = nn.BatchNorm2d(num_features = 1)
-        self.relu = nn.LeakyReLU(0.2)
+        self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
+        self.dropout = nn.Dropout(0.1)
+        
+        # join everything
         self.define_sequence()
+        
 
     def define_sequence(self):
         "set sequence to make it easier for the forward pass"
@@ -118,6 +120,7 @@ class MgcNet(nn.Module):
                 and n_appended_convs == self.num_conv_layers
             ):
                 self.sequence.append(seq_module)
+                self.sequence.append(self.dropout)
                 self.sequence.append(self.relu)
 
         # remove the last relu and change to softmax
