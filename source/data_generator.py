@@ -94,7 +94,7 @@ class function_generator:
         while True:
 
             # this controls how many successive operations are going
-            n_functions = np.random.choice([1, 2, 3])
+            n_functions = np.random.choice([1, 2])
 
             # get a random set of functions but make sure they are mixable
             functions = None
@@ -157,8 +157,6 @@ class function_generator:
             n_operations = n_functions-1
             order_of_operations = np.random.choice(self.operations, size = n_operations)
 
-            # initialize a list for the terms
-            terms = []
             x, y = None, None
             for i, function in enumerate(functions):
 
@@ -173,11 +171,12 @@ class function_generator:
                     funct = getattr(np, operator)
                     
                     # get the new values
-                    y_new = funct_dict[function]['y']/np.max(funct_dict[function]['y'])
+                    y_new = funct_dict[function]['y']/np.nanmax(np.abs(funct_dict[function]['y']))
 
                     # new value for y
                     y = funct(y,y_new)
-                    
+
+            #filter out inf and nan
             inf_mask = ~(np.abs(y) == np.inf)
             nan_mask = ~np.isnan(y)
             x, y = x[nan_mask & inf_mask], y[nan_mask & inf_mask]
@@ -187,43 +186,48 @@ class function_generator:
     def generate_MGC_maps(self, n_samples, generator_parameters):
 
         a, b, p = generator_parameters
-        # temporary
-        a,b,p = -1,1,0.5
+
         # instantiate the generator
         gen = self.yield_sample(a,b,p)
 
         labels = []
         # generate the data
         for i in range(n_samples):
-            print(f"\r{i} {len(self.samples_dict)}", end="")
             (x, y), label = next(gen)
 
             labels.append(label)
 
             try:
-                
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    _, _, MGC_DICT = MGC(x, y, reps=0, workers=-1)
-                    fig, axs = plt.subplots(1,2)
-                    axs[0].imshow(MGC_DICT["mgc_map"])
-                    axs[0].set_title(f'{label[:(len(label)-1)]}\n'+
-                    f'{label[(len(label)-1):]}')
-                    axs[0].invert_yaxis()
-                    axs[1].plot(x, y, 'ro', markersize=2)
-                    plt.pause(0.001)
+                    _, _, mgc_dict = MGC(x, y, reps=0, workers=-1)
 
-                self.samples_dict[i] = (MGC_DICT["mgc_map"], (x, y), label)
+                # find shortest dimension
+                min_dim_mask = mgc_dict["mgc_map"].shape == min(mgc_dict["mgc_map"].shape)
+                
+                # set that one to be nearested
+                size_nearest = np.array(mgc_dict["mgc_map"].shape)
+                size_nearest[min_dim_mask] = self.output_size
+                size_nearest = list(size_nearest)
+                
+                # interpolate nearest that dimension
+                mgc_map = resize(torch.tensor(mgc_dict["mgc_map"]).unsqueeze(0), interpolation=InterpolationMode.NEAREST, size=size_nearest)
 
+                # resize bilinear the other dimension
+                size_max = (self.output_size, self.output_size)
+                mgc_map = resize(mgc_map, size = size_max)
 
+                #self.plot_map(x,y,mgc_map, label)
+
+                self.samples_dict[i] = (mgc_map, (x, y), label)
             except IndexError:
-                pass
+                # mgc has a bug when it defaults to global scale
 
-
-print("a")
-class_instance = function_generator(32)
-a_test,b_test,p_test = -1,1,0.5
-generator = class_instance.yield_sample(a_test,b_test,p_test)
-class_instance.generate_MGC_maps(100, (a_test,b_test,p_test))
-
-# should be around 12 gb of data ofr 100,000 samples
+    def plot_map(self, x,y, mgc_map, label):
+        fig, axs = plt.subplots(1,2)
+        axs[0].imshow(mgc_map[0,:,:])
+        axs[0].invert_yaxis()
+        axs[1].plot(x, y, 'ro', markersize=2, label = label)
+        axs[1].legend()
+        plt.tight_layout
+        plt.pause(0.001)
