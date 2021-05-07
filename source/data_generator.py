@@ -1,3 +1,16 @@
+# imports
+from scipy.stats import multiscale_graphcorr as MGC
+import numpy as np
+import matplotlib.pyplot as plt
+from inspect import getmembers
+import warnings
+
+import sys
+
+sys.path.append('//home/azureuser/MGC_classifier/source')
+import shape_functions
+
+
 class function_generator:
     def __init__(self, sample_size=32, output_size=32):
         
@@ -155,7 +168,7 @@ class function_generator:
                     
                 else:
                     # get the actual function with this operator
-                    y = y/np.max(y)
+                    y = y/np.nanmax(np.abs(y))
                     operator = order_of_operations[i-1]
                     funct = getattr(np, operator)
                     
@@ -165,6 +178,9 @@ class function_generator:
                     # new value for y
                     y = funct(y,y_new)
                     
+            inf_mask = ~(np.abs(y) == np.inf)
+            nan_mask = ~np.isnan(y)
+            x, y = x[nan_mask & inf_mask], y[nan_mask & inf_mask]
 
             yield (x, y), (*functions, *order_of_operations)
 
@@ -182,10 +198,6 @@ class function_generator:
             print(f"\r{i} {len(self.samples_dict)}", end="")
             (x, y), label = next(gen)
 
-            # remove nans
-            nan_mask = ~np.isnan(x) | ~np.isnan(y)
-
-            x, y = x[nan_mask], y[nan_mask]
             labels.append(label)
 
             try:
